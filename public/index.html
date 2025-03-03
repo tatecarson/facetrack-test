@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tracking for Wekinator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 40px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+            line-height: 1.6;
+        }
+        h1 {
+            margin-bottom: 20px;
+            color: #333;
+        }
+        p {
+            margin-bottom: 30px;
+            max-width: 700px;
+            text-align: center;
+        }
+        .cards {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            flex-wrap: wrap;
+            margin-bottom: 40px;
+        }
+        .card {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            padding: 25px;
+            width: 300px;
+            text-align: center;
+            transition: transform 0.3s, box-shadow 0.3s;
+            cursor: pointer;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        }
+        .card h2 {
+            margin-top: 0;
+            color: #4CAF50;
+        }
+        .card p {
+            margin-bottom: 20px;
+        }
+        .card-link {
+            display: inline-block;
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: bold;
+            transition: background-color 0.3s;
+        }
+        .card-link:hover {
+            background-color: #45a049;
+        }
+        .info {
+            background-color: #e8f4fd;
+            border-left: 4px solid #2196F3;
+            padding: 15px;
+            margin-top: 30px;
+            max-width: 700px;
+            border-radius: 0 5px 5px 0;
+        }
+        .info h3 {
+            margin-top: 0;
+            color: #2196F3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Tracking for Wekinator</h1>
+    <p>Select a tracking mode to begin. Each mode sends different OSC data to Wekinator for sound control.</p>
+    
+    <div class="cards">
+        <div class="card">
+            <h2>Face Tracking</h2>
+            <p>Track facial features including eyes, nose, and mouth positions. Sends 12 parameters to Wekinator.</p>
+            <a href="/face-tracking.html" class="card-link">Start Face Tracking</a>
+        </div>
+        
+        <div class="card">
+            <h2>Body Tracking</h2>
+            <p>Track body pose with 17 keypoints including shoulders, elbows, wrists, knees, etc. Sends 34 parameters to Wekinator.</p>
+            <a href="/body-tracking.html" class="card-link">Start Body Tracking</a>
+        </div>
+    </div>
+    
+    <div class="info">
+        <h3>Setup Information</h3>
+        <p>For Face Tracking, configure Wekinator with OSC address <code>/wek/inputs/face</code> and <strong>12 inputs</strong>.</p>
+        <p>For Body Tracking, configure Wekinator with OSC address <code>/wek/inputs/body</code> and <strong>34 inputs</strong>.</p>
+        <p>Both modes send OSC data to port 6448 on localhost (127.0.0.1).</p>
+    </div>
+</body>
+</html>
