@@ -7,6 +7,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const startBtn = document.getElementById('startBtn');
     const stopBtn = document.getElementById('stopBtn');
     const metricsDiv = document.getElementById('metrics');
+    const smoothingSlider = document.getElementById('smoothingSlider');
+    const smoothingValue = document.getElementById('smoothingValue');
     
     // Initialize socket.io connection to the server
     const socket = io();
@@ -15,6 +17,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let isTracking = false;
     let trackingInterval = null;
     let faceModelsLoaded = false;
+    
+    // Smoothing buffer for face tracking parameters
+    let dataBuffer = [];
+    let smoothingFrames = 1; // Default: no smoothing
     
     // Initialize face-api.js
     async function initFaceAPI() {
@@ -110,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 drawPoint(mouthCenter.x, mouthCenter.y, 5, '#ff0000');
                 
                 // Normalize coordinates (0-1) relative to video dimensions
-                const normalizedData = {
+                const currentData = {
                     x: box.x / video.width,
                     y: box.y / video.height,
                     width: box.width / video.width,
@@ -125,11 +131,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     mouthY: mouthCenter.y / video.height
                 };
                 
-                // Send face data to the server via WebSocket
-                socket.emit('faceData', normalizedData);
+                // Add current data to the buffer
+                dataBuffer.push(currentData);
+                
+                // Keep buffer size equal to smoothing frames
+                if (dataBuffer.length > smoothingFrames) {
+                    dataBuffer.shift();
+                }
+                
+                // Apply smoothing by averaging values in the buffer
+                const smoothedData = applySmoothing(dataBuffer);
+                
+                // Send smoothed face data to the server via WebSocket
+                socket.emit('faceData', smoothedData);
                 
                 // Update the metrics display
-                updateMetricsDisplay(normalizedData);
+                updateMetricsDisplay(smoothedData);
                 
                 statusDiv.textContent = 'Tracking face...';
             } else {
@@ -140,6 +157,26 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error('Error during face detection:', error);
             statusDiv.textContent = 'Error during face detection';
         }
+    }
+    
+    // Apply smoothing by averaging values in the buffer
+    function applySmoothing(buffer) {
+        if (buffer.length === 0) return {};
+        if (buffer.length === 1) return buffer[0];
+        
+        // Create an object to hold the averaged values
+        const result = {};
+        
+        // Get all property names from the first object
+        const keys = Object.keys(buffer[0]);
+        
+        // Calculate average for each property
+        keys.forEach(key => {
+            const sum = buffer.reduce((total, item) => total + item[key], 0);
+            result[key] = sum / buffer.length;
+        });
+        
+        return result;
     }
     
     // Calculate the center point of a set of landmarks points
@@ -178,6 +215,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isTracking) return;
         
         try {
+            // Reset data buffer when starting tracking
+            dataBuffer = [];
+            
             await startVideo();
             isTracking = true;
             startBtn.disabled = true;
@@ -210,6 +250,15 @@ document.addEventListener('DOMContentLoaded', () => {
         startBtn.disabled = false;
         stopBtn.disabled = true;
         metricsDiv.innerHTML = '';
+    });
+    
+    // Smoothing slider change event
+    smoothingSlider.addEventListener('input', () => {
+        smoothingFrames = parseInt(smoothingSlider.value);
+        smoothingValue.textContent = smoothingFrames;
+        
+        // Clear buffer when changing smoothing amount
+        dataBuffer = [];
     });
     
     // Socket connection event handlers

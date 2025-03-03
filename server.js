@@ -20,6 +20,14 @@ const WEKINATOR_HOST = '127.0.0.1';
 const WEKINATOR_PORT = 6448; // Default Wekinator input port
 const oscClient = new Client(WEKINATOR_HOST, WEKINATOR_PORT);
 
+// Body parts that PoseNet can detect (17 keypoints)
+const BODY_PARTS = [
+  'nose', 'leftEye', 'rightEye', 'leftEar', 'rightEar',
+  'leftShoulder', 'rightShoulder', 'leftElbow', 'rightElbow',
+  'leftWrist', 'rightWrist', 'leftHip', 'rightHip',
+  'leftKnee', 'rightKnee', 'leftAnkle', 'rightAnkle'
+];
+
 // When a client connects via WebSocket
 io.on('connection', (socket) => {
   console.log('Client connected');
@@ -61,25 +69,40 @@ io.on('connection', (socket) => {
     console.log('Received body data');
     
     try {
-      // Extract body pose key points and convert to array of values
-      // PoseNet provides 17 key points, each with x, y coordinates
-      // We'll flatten these into a single array of values
+      // Create a fixed-size array of OSC values (34 values: 17 keypoints x 2 coordinates)
       const oscValues = [];
       
-      // Add each keypoint's coordinates to the array
+      // Create a map of keypoints for easier lookup
+      const keypointMap = {};
       if (Array.isArray(data.keypoints)) {
         data.keypoints.forEach(keypoint => {
-          oscValues.push(
-            parseFloat(keypoint.x) || 0,
-            parseFloat(keypoint.y) || 0
-          );
+          keypointMap[keypoint.part] = keypoint;
         });
       }
       
-      // Send the OSC message to Wekinator with dedicated address for body data
-      oscClient.send('/wek/inputs/body', ...oscValues, (err) => {
-        if (err) console.error('Error sending body OSC message:', err);
+      // Go through each known body part and add its coordinates
+      // If the keypoint is missing, use 0 values
+      BODY_PARTS.forEach(part => {
+        const keypoint = keypointMap[part];
+        if (keypoint && keypoint.score > 0.2) { // Only use the keypoint if confidence is sufficient
+          oscValues.push(parseFloat(keypoint.x) || 0);
+          oscValues.push(parseFloat(keypoint.y) || 0);
+        } else {
+          // If keypoint is missing or low confidence, push default values
+          oscValues.push(0.0);
+          oscValues.push(0.0);
+        }
       });
+      
+      // Ensure we always have exactly 34 parameters for Wekinator (17 keypoints x 2 coords)
+      if (oscValues.length === 34) {
+        // Send the OSC message to Wekinator with dedicated address for body data
+        oscClient.send('/wek/inputs/body', ...oscValues, (err) => {
+          if (err) console.error('Error sending body OSC message:', err);
+        });
+      } else {
+        console.error(`Invalid number of body parameters: ${oscValues.length}, expected 34`);
+      }
     } catch (err) {
       console.error('Error creating body OSC message:', err);
     }

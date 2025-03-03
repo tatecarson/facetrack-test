@@ -84,6 +84,28 @@
         .mode-switch {
             margin: 20px 0;
         }
+        .slider-container {
+            margin: 15px 0;
+            width: 300px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .slider-container label {
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .slider-value {
+            margin-top: 5px;
+            font-size: 0.9em;
+            color: #555;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+        }
     </style>
 </head>
 <body>
@@ -104,6 +126,12 @@
         <div class="buttons">
             <button id="startBtn">Start Tracking</button>
             <button id="stopBtn" disabled>Stop Tracking</button>
+        </div>
+        
+        <div class="slider-container">
+            <label for="smoothingSlider">Smoothing Amount</label>
+            <input type="range" id="smoothingSlider" min="1" max="20" value="1" step="1">
+            <div class="slider-value">Averaging over <span id="smoothingValue">1</span> frames</div>
         </div>
     </div>
     

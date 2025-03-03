@@ -7,6 +7,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const startBtn = document.getElementById('startBtn');
     const stopBtn = document.getElementById('stopBtn');
     const metricsDiv = document.getElementById('metrics');
+    const smoothingSlider = document.getElementById('smoothingSlider');
+    const smoothingValue = document.getElementById('smoothingValue');
     
     // Initialize socket.io connection to the server
     const socket = io();
@@ -15,6 +17,18 @@ document.addEventListener('DOMContentLoaded', () => {
     let isTracking = false;
     let trackingInterval = null;
     let poseNetModel = null;
+    
+    // Smoothing buffer for body tracking parameters
+    let dataBuffer = [];
+    let smoothingFrames = 1; // Default: no smoothing
+    
+    // Body parts that PoseNet can detect (must match the server list)
+    const BODY_PARTS = [
+        'nose', 'leftEye', 'rightEye', 'leftEar', 'rightEar',
+        'leftShoulder', 'rightShoulder', 'leftElbow', 'rightElbow',
+        'leftWrist', 'rightWrist', 'leftHip', 'rightHip',
+        'leftKnee', 'rightKnee', 'leftAnkle', 'rightAnkle'
+    ];
     
     // Initialize PoseNet
     async function initPoseNet() {
@@ -79,31 +93,117 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Draw keypoints
                 drawBodyKeypoints(pose.keypoints);
                 
-                // Create normalized data - normalize all keypoints to 0-1 range
-                const normalizedKeypoints = pose.keypoints.map(keypoint => {
-                    return {
-                        part: keypoint.part,
-                        score: keypoint.score,
-                        x: keypoint.position.x / video.width,
-                        y: keypoint.position.y / video.height
-                    };
-                });
+                // Create a standardized keypoint data structure
+                const currentData = standardizeKeypoints(pose.keypoints);
+                
+                // Add current data to the buffer
+                dataBuffer.push(currentData);
+                
+                // Keep buffer size equal to smoothing frames
+                if (dataBuffer.length > smoothingFrames) {
+                    dataBuffer.shift();
+                }
+                
+                // Apply smoothing by averaging values in the buffer
+                const smoothedKeypoints = applySmoothing(dataBuffer);
                 
                 // Send body tracking data to the server
-                socket.emit('bodyData', { keypoints: normalizedKeypoints });
+                socket.emit('bodyData', { keypoints: smoothedKeypoints });
                 
                 // Update the metrics display
-                updateBodyMetricsDisplay(normalizedKeypoints);
+                updateBodyMetricsDisplay(smoothedKeypoints);
                 
                 statusDiv.textContent = 'Tracking body...';
             } else {
                 statusDiv.textContent = 'No body pose detected';
                 metricsDiv.innerHTML = '';
+                
+                // If no body detected, send zeros to maintain consistent data flow
+                const emptyData = BODY_PARTS.map(part => {
+                    return { part, score: 0, x: 0, y: 0 };
+                });
+                socket.emit('bodyData', { keypoints: emptyData });
             }
         } catch (error) {
             console.error('Error during body detection:', error);
             statusDiv.textContent = 'Error during body detection: ' + error.message;
         }
+    }
+    
+    // Standardize keypoints to ensure we have data for all expected body parts
+    function standardizeKeypoints(detectedKeypoints) {
+        // Create a map of detected keypoints
+        const keypointMap = {};
+        detectedKeypoints.forEach(keypoint => {
+            keypointMap[keypoint.part] = keypoint;
+        });
+        
+        // Create a standardized array with all body parts
+        return BODY_PARTS.map(part => {
+            if (keypointMap[part] && keypointMap[part].score > 0.2) {
+                // Use detected keypoint if available and confidence is sufficient
+                return {
+                    part: part,
+                    score: keypointMap[part].score,
+                    x: keypointMap[part].position.x / video.width,
+                    y: keypointMap[part].position.y / video.height
+                };
+            } else {
+                // Otherwise use default values
+                return {
+                    part: part,
+                    score: 0,
+                    x: 0,
+                    y: 0
+                };
+            }
+        });
+    }
+    
+    // Apply smoothing by averaging values in the buffer for body keypoints
+    function applySmoothing(buffer) {
+        if (buffer.length === 0) return [];
+        if (buffer.length === 1) return buffer[0];
+        
+        // Create result array to hold the smoothed keypoints
+        const result = [];
+        
+        // For each body part position
+        for (let i = 0; i < BODY_PARTS.length; i++) {
+            const part = BODY_PARTS[i];
+            
+            // Sum up the values for this body part across all frames in the buffer
+            let sumX = 0;
+            let sumY = 0;
+            let sumScore = 0;
+            let validFrames = 0;
+            
+            // Go through each frame in the buffer
+            buffer.forEach(frame => {
+                const keypoint = frame[i]; // The keypoint at this position should have the same part name
+                if (keypoint && keypoint.part === part) {
+                    sumX += keypoint.x || 0;
+                    sumY += keypoint.y || 0;
+                    sumScore += keypoint.score || 0;
+                    validFrames++;
+                }
+            });
+            
+            // Calculate averages
+            const avgX = validFrames > 0 ? sumX / validFrames : 0;
+            const avgY = validFrames > 0 ? sumY / validFrames : 0;
+            const avgScore = validFrames > 0 ? sumScore / validFrames : 0;
+            
+            // Add the smoothed keypoint to the result
+            result.push({
+                part: part,
+                score: avgScore,
+                x: avgX,
+                y: avgY
+            });
+        }
+        
+        return result;
     }
     
     // Draw the body keypoints on the canvas
@@ -172,10 +272,17 @@ document.addEventListener('DOMContentLoaded', () => {
         metricsDiv.innerHTML = '';
         
         keypoints.forEach(keypoint => {
-            if (keypoint.score > 0.3) {
+            if (keypoint.score > 0.2) { // Only show keypoints with reasonable confidence
                 const metricElement = document.createElement('div');
                 metricElement.className = 'metric';
                 metricElement.textContent = `${keypoint.part}: x=${keypoint.x.toFixed(3)}, y=${keypoint.y.toFixed(3)}`;
+                metricsDiv.appendChild(metricElement);
+            } else {
+                // Show missing keypoints in gray
+                const metricElement = document.createElement('div');
+                metricElement.className = 'metric';
+                metricElement.style.opacity = "0.5";
+                metricElement.textContent = `${keypoint.part}: not detected`;
                 metricsDiv.appendChild(metricElement);
             }
         });
@@ -194,6 +301,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isTracking) return;
         
         try {
+            // Reset data buffer when starting tracking
+            dataBuffer = [];
+            
             await startVideo();
             isTracking = true;
             startBtn.disabled = true;
@@ -226,6 +336,15 @@ document.addEventListener('DOMContentLoaded', () => {
         startBtn.disabled = false;
         stopBtn.disabled = true;
         metricsDiv.innerHTML = '';
+    });
+    
+    // Smoothing slider change event
+    smoothingSlider.addEventListener('input', () => {
+        smoothingFrames = parseInt(smoothingSlider.value);
+        smoothingValue.textContent = smoothingFrames;
+        
+        // Clear buffer when changing smoothing amount
+        dataBuffer = [];
     });
     
     // Socket connection event handlers
