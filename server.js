@@ -108,6 +108,27 @@ io.on('connection', (socket) => {
     }
   });
   
+  // Listen for device orientation data from the client
+  socket.on('orientationData', (data) => {
+    console.log('Received orientation data');
+    
+    try {
+      // Extract the three orientation values (alpha, beta, gamma)
+      const oscValues = [
+        parseFloat(data.alpha) || 0,
+        parseFloat(data.beta) || 0,
+        parseFloat(data.gamma) || 0
+      ];
+      
+      // Send the OSC message to Wekinator with dedicated address for orientation data
+      oscClient.send('/wek/inputs/orientation', ...oscValues, (err) => {
+        if (err) console.error('Error sending orientation OSC message:', err);
+      });
+    } catch (err) {
+      console.error('Error creating orientation OSC message:', err);
+    }
+  });
+  
   // Handle disconnection
   socket.on('disconnect', () => {
     console.log('Client disconnected');

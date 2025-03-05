@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Device Orientation for Wekinator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+        }
+        h1 {
+            margin-bottom: 10px;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+            margin: 20px 0;
+        }
+        #status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #e0e0e0;
+            min-width: 300px;
+            text-align: center;
+        }
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        .buttons {
+            display: flex;
+            gap: 10px;
+        }
+        button {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .metrics {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 800px;
+            margin-top: 10px;
+        }
+        .metric {
+            background-color: #fff;
+            padding: 8px;
+            margin: 5px;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            flex: 1 1 30%;
+            max-width: 150px;
+            text-align: center;
+        }
+        .mode-switch {
+            margin: 20px 0;
+        }
+        .slider-container {
+            margin: 15px 0;
+            width: 300px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .slider-container label {
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .slider-value {
+            margin-top: 5px;
+            font-size: 0.9em;
+            color: #555;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+        }
+        
+        .orientation-visualizer {
+            width: 200px;
+            height: 200px;
+            border: 1px solid #999;
+            border-radius: 10px;
+            margin: 20px 0;
+            background-color: #fff;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .device {
+            position: absolute;
+            width: 120px;
+            height: 180px;
+            background-color: #2196F3;
+            border-radius: 10px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            transform-style: preserve-3d;
+        }
+        
+        .device-indicator {
+            width: 10px;
+            height: 10px;
+            background-color: red;
+            border-radius: 50%;
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+        
+        .info-box {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #e8f4fd;
+            border-left: 4px solid #2196F3;
+            border-radius: 0 5px 5px 0;
+            max-width: 600px;
+            text-align: left;
+        }
+        
+        .mobile-instructions {
+            margin: 20px 0;
+            padding: 15px;
+            background-color: #fff8e1;
+            border-left: 4px solid #ffc107;
+            border-radius: 0 5px 5px 0;
+            max-width: 600px;
+            text-align: left;
+        }
+        
+        .mobile-instructions h3 {
+            margin-top: 0;
+            color: #ff9800;
+        }
+        
+        .mobile-instructions pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        
+        .mobile-instructions code {
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+    <h1>Device Orientation for Wekinator</h1>
+    
+    <div class="mode-switch">
+        <a href="/face-tracking.html">Switch to Face Tracking</a> | 
+        <a href="/body-tracking.html">Switch to Body Tracking</a>
+    </div>
+    
+    <div class="info-box">
+        <p><strong>Instructions:</strong> Allow motion sensor access when prompted. This page captures your device's orientation data and sends it to Wekinator.</p>
+        <p>This works best on mobile devices. Hold your phone in different positions to control parameters.</p>
+        <p>Configure Wekinator with OSC address <code>/wek/inputs/orientation</code> and <strong>3 inputs</strong>.</p>
+    </div>
+    
+    <div class="mobile-instructions">
+        <h3>Accessing from Mobile Devices</h3>
+        <p>To use this page with your mobile phone, you need to make your local server accessible over the internet. You can do this with localtunnel:</p>
+        
+        <ol>
+            <li>Make sure you have Node.js installed</li>
+            <li>Start your server with <code>node server.js</code> (should be running on port 3000)</li>
+            <li>Open a new terminal and run: <code>npx localtunnel --port 3000</code></li>
+            <li>Copy the URL provided by localtunnel (looks like <code>https://xxxx-xxxx-xxxx.loca.lt</code>)</li>
+            <li>Open this URL on your mobile device</li>
+            <li>When prompted to continue to the site, click "Visit Site"</li>
+            <li>Important: The OSC data will still be sent to localhost (127.0.0.1). Make sure Wekinator is running on the same computer as your server.</li>
+        </ol>
+
+        <p><strong>Note:</strong> For security reasons, most mobile browsers require HTTPS for accessing device sensors. Localtunnel provides this automatically.</p>
+        <p><strong>Important:</strong> Motion sensors only work when the page is active. Keep your phone's screen on while using this feature.</p>
+    </div>
+    
+    <div class="orientation-visualizer">
+        <div class="device">
+            <div class="device-indicator"></div>
+        </div>
+    </div>
+    
+    <div id="status">Waiting for orientation sensor...</div>
+    
+    <div class="controls">
+        <div class="buttons">
+            <button id="startBtn">Start Tracking</button>
+            <button id="stopBtn" disabled>Stop Tracking</button>
+        </div>
+        
+        <div class="slider-container">
+            <label for="smoothingSlider">Smoothing Amount</label>
+            <input type="range" id="smoothingSlider" min="1" max="20" value="1" step="1">
+            <div class="slider-value">Averaging over <span id="smoothingValue">1</span> frames</div>
+        </div>
+    </div>
+    
+    <div class="metrics" id="metrics">
+        <!-- Orientation metrics will be displayed here -->
+    </div>
+    
+    <!-- Load Socket.IO -->
+    <script src="/socket.io/socket.io.js"></script>
+    
+    <!-- Load our device orientation tracking script -->
+    <script src="device-orientation.js"></script>
+</body>
+</html>
